@@ -1959,7 +1959,7 @@ impl<F: AcirField> AcirContext<F> {
 
     pub(crate) fn call_acir_function(
         &mut self,
-        id: u32,
+        id: AcirFunctionId,
         inputs: Vec<AcirValue>,
         output_count: usize,
         predicate: AcirVar,
@@ -1979,12 +1979,7 @@ impl<F: AcirField> AcirContext<F> {
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
         let predicate = Some(self.var_to_expression(predicate)?);
-        self.acir_ir.push_opcode(Opcode::Call {
-            id: AcirFunctionId(id),
-            inputs,
-            outputs,
-            predicate,
-        });
+        self.acir_ir.push_opcode(Opcode::Call { id: id, inputs, outputs, predicate });
         Ok(results)
     }
 }
