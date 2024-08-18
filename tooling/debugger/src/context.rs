@@ -1,6 +1,7 @@
 use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
+use acvm::acir::circuit::opcodes::function_id::AcirFunctionId;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
@@ -120,7 +121,7 @@ impl AddressMap {
     /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
     /// opcodes.
     pub fn debug_location_to_address(&self, location: &DebugLocation) -> usize {
-        let circuit_addresses = &self.addresses[location.circuit_id as usize];
+        let circuit_addresses = &self.addresses[location.circuit_id.as_usize()];
         match &location.opcode_location {
             OpcodeLocation::Acir(acir_index) => circuit_addresses[*acir_index],
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
@@ -166,13 +167,13 @@ impl AddressMap {
                 }
             };
 
-        Some(DebugLocation { circuit_id: circuit_id as u32, opcode_location, brillig_function_id })
+        Some(DebugLocation { circuit_id: AcirFunctionId(circuit_id as u32), opcode_location, brillig_function_id })
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct DebugLocation {
-    pub circuit_id: u32,
+    pub circuit_id: AcirFunctionId,
     pub opcode_location: OpcodeLocation,
     pub brillig_function_id: Option<BrilligFunctionId>,
 }
@@ -203,7 +204,7 @@ impl std::str::FromStr for DebugLocation {
 
         match parts.len() {
             1 => OpcodeLocation::from_str(parts[0]).map_or(error, |opcode_location| {
-                Ok(DebugLocation { circuit_id: 0, opcode_location, brillig_function_id: None })
+                Ok(DebugLocation { circuit_id: AcirFunctionId(0), opcode_location, brillig_function_id: None })
             }),
             2 => {
                 let first_part = parts[0].parse().ok();
@@ -228,13 +229,13 @@ pub(super) enum DebugCommandResult {
 }
 
 pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    circuit_id: u32,
+    circuit_id: AcirFunctionId,
     acvm: ACVM<'a, FieldElement, B>,
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     acvm: ACVM<'a, FieldElement, B>,
-    current_circuit_id: u32,
+    current_circuit_id: AcirFunctionId,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 
     witness_stack: WitnessStack<FieldElement>,
@@ -263,8 +264,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
-        let current_circuit_id: u32 = 0;
-        let initial_circuit = &circuits[current_circuit_id as usize];
+        let current_circuit_id: AcirFunctionId = AcirFunctionId(0);
+        let initial_circuit = &circuits[current_circuit_id.as_usize()];
         let acir_opcode_addresses = AddressMap::new(circuits, unconstrained_functions);
         Self {
             acvm: ACVM::new(
@@ -293,8 +294,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.acvm.opcodes()
     }
 
-    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: u32) -> &[Opcode<FieldElement>] {
-        &self.circuits[circuit_id as usize].opcodes
+    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: AcirFunctionId) -> &[Opcode<FieldElement>] {
+        &self.circuits[circuit_id.as_usize()].opcodes
     }
 
     pub(super) fn get_witness_map(&self) -> &WitnessMap<FieldElement> {
@@ -439,12 +440,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         &self,
         debug_location: &DebugLocation,
     ) -> Vec<Location> {
-        self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
+        self.debug_artifact.debug_symbols[debug_location.circuit_id.as_usize()]
             .opcode_location(&debug_location.opcode_location)
             .unwrap_or_else(|| {
                 if let Some(brillig_function_id) = debug_location.brillig_function_id {
                     let brillig_locations = self.debug_artifact.debug_symbols
-                        [debug_location.circuit_id as usize]
+                        [debug_location.circuit_id.as_usize()]
                         .brillig_locations
                         .get(&brillig_function_id);
                     brillig_locations
@@ -578,7 +579,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack
             .push(ExecutionFrame { circuit_id: self.current_circuit_id, acvm: caller_acvm });
-        self.current_circuit_id = call_info.id.0;
+        self.current_circuit_id = call_info.id;
 
         // Explicitly handling the new ACVM status here handles two edge cases:
         // 1. there is a breakpoint set at the beginning of a circuit
@@ -804,7 +805,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn is_valid_debug_location(&self, location: &DebugLocation) -> bool {
-        if location.circuit_id as usize >= self.circuits.len() {
+        if location.circuit_id.as_usize() >= self.circuits.len() {
             return false;
         }
         let opcodes = self.get_opcodes_of_circuit(location.circuit_id);
@@ -927,7 +928,7 @@ fn add_opcode_locations_map(
             let line_number = line_index + 1;
 
             let debug_location = DebugLocation {
-                circuit_id: circuit_id as u32,
+                circuit_id: AcirFunctionId(circuit_id as u32),
                 opcode_location: *opcode_location,
                 brillig_function_id,
             };

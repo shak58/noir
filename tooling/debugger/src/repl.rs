@@ -2,6 +2,7 @@ use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
 use acvm::acir::brillig::{BitSize, IntegerBitSize};
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
+use acvm::acir::circuit::opcodes::function_id::AcirFunctionId;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
@@ -139,11 +140,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
 
     fn display_opcodes(&self) {
         for i in 0..self.circuits.len() {
-            self.display_opcodes_of_circuit(i as u32);
+            self.display_opcodes_of_circuit(AcirFunctionId(i as u32));
         }
     }
 
-    fn display_opcodes_of_circuit(&self, circuit_id: u32) {
+    fn display_opcodes_of_circuit(&self, circuit_id: AcirFunctionId) {
         let current_opcode_location =
             self.context.get_current_debug_location().and_then(|debug_location| {
                 if debug_location.circuit_id == circuit_id {
