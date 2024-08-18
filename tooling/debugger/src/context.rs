@@ -167,7 +167,11 @@ impl AddressMap {
                 }
             };
 
-        Some(DebugLocation { circuit_id: AcirFunctionId(circuit_id as u32), opcode_location, brillig_function_id })
+        Some(DebugLocation {
+            circuit_id: AcirFunctionId(circuit_id as u32),
+            opcode_location,
+            brillig_function_id,
+        })
     }
 }
 
@@ -204,7 +208,11 @@ impl std::str::FromStr for DebugLocation {
 
         match parts.len() {
             1 => OpcodeLocation::from_str(parts[0]).map_or(error, |opcode_location| {
-                Ok(DebugLocation { circuit_id: AcirFunctionId(0), opcode_location, brillig_function_id: None })
+                Ok(DebugLocation {
+                    circuit_id: AcirFunctionId(0),
+                    opcode_location,
+                    brillig_function_id: None,
+                })
             }),
             2 => {
                 let first_part = parts[0].parse().ok();
@@ -294,7 +302,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.acvm.opcodes()
     }
 
-    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: AcirFunctionId) -> &[Opcode<FieldElement>] {
+    pub(super) fn get_opcodes_of_circuit(
+        &self,
+        circuit_id: AcirFunctionId,
+    ) -> &[Opcode<FieldElement>] {
         &self.circuits[circuit_id.as_usize()].opcodes
     }
 
@@ -446,8 +457,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 if let Some(brillig_function_id) = debug_location.brillig_function_id {
                     let brillig_locations = self.debug_artifact.debug_symbols
                         [debug_location.circuit_id.as_usize()]
-                        .brillig_locations
-                        .get(&brillig_function_id);
+                    .brillig_locations
+                    .get(&brillig_function_id);
                     brillig_locations
                         .unwrap()
                         .get(&debug_location.opcode_location)

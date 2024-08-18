@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::num::ParseIntError;
+use std::str::FromStr;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash, Default, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash, Default, PartialOrd, Ord,
+)]
 #[serde(transparent)]
 pub struct AcirFunctionId(pub u32);
 
